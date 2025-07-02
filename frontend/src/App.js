@@ -815,16 +815,73 @@ const NewWorkout = ({ onBack, onSaveWorkout, user }) => {
   const [exercises, setExercises] = useState([]);
   const [currentExercise, setCurrentExercise] = useState({ name: '', reps: '', sets: '', rest: '' });
 
-  const exerciseTemplates = [
-    { name: 'Flexão de Braço', category: 'Peito' },
-    { name: 'Agachamento', category: 'Pernas' },
-    { name: 'Abdominal', category: 'Core' },
-    { name: 'Burpee', category: 'Cardio' },
-    { name: 'Prancha', category: 'Core' },
-    { name: 'Polichinelo', category: 'Cardio' },
-    { name: 'Lunges', category: 'Pernas' },
-    { name: 'Mountain Climbers', category: 'Cardio' }
-  ];
+  // Exercícios organizados por categoria
+  const exercisesByCategory = {
+    'Cardio': [
+      { name: 'Polichinelo', category: 'Cardio' },
+      { name: 'Corrida Estacionária', category: 'Cardio' },
+      { name: 'Mountain Climbers', category: 'Cardio' },
+      { name: 'Burpee', category: 'Cardio' },
+      { name: 'Jumping Jacks', category: 'Cardio' },
+      { name: 'High Knees', category: 'Cardio' },
+      { name: 'Skipping', category: 'Cardio' },
+      { name: 'Shadow Boxing', category: 'Cardio' }
+    ],
+    'Força': [
+      { name: 'Flexão de Braço', category: 'Força' },
+      { name: 'Agachamento', category: 'Força' },
+      { name: 'Lunges', category: 'Força' },
+      { name: 'Prancha', category: 'Força' },
+      { name: 'Flexão Diamante', category: 'Força' },
+      { name: 'Agachamento Búlgaro', category: 'Força' },
+      { name: 'Pike Push-ups', category: 'Força' },
+      { name: 'Glute Bridge', category: 'Força' }
+    ],
+    'Flexibilidade': [
+      { name: 'Alongamento de Panturrilha', category: 'Flexibilidade' },
+      { name: 'Alongamento de Quadríceps', category: 'Flexibilidade' },
+      { name: 'Alongamento de Ombros', category: 'Flexibilidade' },
+      { name: 'Gato e Vaca', category: 'Flexibilidade' },
+      { name: 'Torção Espinhal', category: 'Flexibilidade' },
+      { name: 'Cão Olhando para Baixo', category: 'Flexibilidade' },
+      { name: 'Alongamento do Psoas', category: 'Flexibilidade' },
+      { name: 'Postura da Criança', category: 'Flexibilidade' }
+    ],
+    'HIIT': [
+      { name: 'Burpee com Salto', category: 'HIIT' },
+      { name: 'Squat Jump', category: 'HIIT' },
+      { name: 'Mountain Climbers Rápidos', category: 'HIIT' },
+      { name: 'Prancha com Knee-to-Elbow', category: 'HIIT' },
+      { name: 'Jump Lunges', category: 'HIIT' },
+      { name: 'Bear Crawl', category: 'HIIT' },
+      { name: 'Tabata Squats', category: 'HIIT' },
+      { name: 'Sprint no Lugar', category: 'HIIT' }
+    ],
+    'Funcional': [
+      { name: 'Bear Crawl', category: 'Funcional' },
+      { name: 'Crab Walk', category: 'Funcional' },
+      { name: 'Turkish Get-up', category: 'Funcional' },
+      { name: 'Farmer Walk', category: 'Funcional' },
+      { name: 'Single Leg Deadlift', category: 'Funcional' },
+      { name: 'Lateral Lunges', category: 'Funcional' },
+      { name: 'Wood Choppers', category: 'Funcional' },
+      { name: 'Crawling Patterns', category: 'Funcional' }
+    ]
+  };
+
+  // Obter exercícios da categoria selecionada ou todos se não houver categoria
+  const getCurrentExercises = () => {
+    if (workoutCategory && exercisesByCategory[workoutCategory]) {
+      return exercisesByCategory[workoutCategory];
+    }
+    // Se não há categoria, mostrar uma mistura de todos
+    return [
+      ...exercisesByCategory['Cardio'].slice(0, 2),
+      ...exercisesByCategory['Força'].slice(0, 2),
+      ...exercisesByCategory['HIIT'].slice(0, 2),
+      ...exercisesByCategory['Funcional'].slice(0, 2)
+    ];
+  };
 
   const addExercise = () => {
     if (currentExercise.name && currentExercise.reps && currentExercise.sets) {
@@ -877,10 +934,12 @@ const NewWorkout = ({ onBack, onSaveWorkout, user }) => {
           <div>
             <h3 className="text-white font-bold text-lg mb-2">🤖 Personal Trainer IA</h3>
             <p className="text-purple-200 text-sm">Deixe nossa IA criar um treino personalizado para você!</p>
+            <p className="text-purple-300 text-xs mt-1">⚠️ Funcionalidade temporariamente indisponível</p>
           </div>
           <button
-            onClick={() => setShowAI(true)}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 px-6 rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105"
+            onClick={() => alert('IA temporariamente indisponível. Use a criação manual abaixo.')}
+            className="bg-gray-600 text-white py-3 px-6 rounded-xl font-semibold cursor-not-allowed opacity-50"
+            disabled
           >
             Usar IA
           </button>
@@ -926,9 +985,11 @@ const NewWorkout = ({ onBack, onSaveWorkout, user }) => {
           
           {/* Templates de Exercícios */}
           <div className="mb-4">
-            <p className="text-white mb-2">Exercícios Sugeridos:</p>
+            <p className="text-white mb-2">
+              Exercícios Sugeridos {workoutCategory && `para ${workoutCategory}`}:
+            </p>
             <div className="grid grid-cols-2 gap-2">
-              {exerciseTemplates.map((template, index) => (
+              {getCurrentExercises().map((template, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentExercise({...currentExercise, name: template.name})}
@@ -938,6 +999,11 @@ const NewWorkout = ({ onBack, onSaveWorkout, user }) => {
                 </button>
               ))}
             </div>
+            {workoutCategory && (
+              <p className="text-gray-400 text-xs mt-2">
+                💡 Os exercícios sugeridos mudaram para a categoria "{workoutCategory}"
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-4">
