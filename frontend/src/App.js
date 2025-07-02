@@ -1,8 +1,198 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import axios from 'axios';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
+
+// Componente Login
+const Login = ({ onLogin, onToggleMode }) => {
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await axios.post(`${API}/login`, formData);
+      onLogin(response.data);
+    } catch (error) {
+      setError(error.response?.data?.detail || 'Erro no login');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center px-4">
+      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8 w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">Bem-vindo de volta!</h1>
+          <p className="text-gray-400">Entre na sua conta para continuar</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-white mb-2">Email</label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              className="w-full bg-gray-700/70 text-white p-4 rounded-xl border border-gray-600 focus:border-purple-500 focus:outline-none transition-colors"
+              placeholder="seu@email.com"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-white mb-2">Senha</label>
+            <input
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              className="w-full bg-gray-700/70 text-white p-4 rounded-xl border border-gray-600 focus:border-purple-500 focus:outline-none transition-colors"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 text-red-300 p-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 px-4 rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 disabled:opacity-50"
+          >
+            {loading ? 'Entrando...' : 'Entrar'}
+          </button>
+        </form>
+
+        <div className="text-center mt-6">
+          <p className="text-gray-400">
+            Não tem uma conta?{' '}
+            <button onClick={onToggleMode} className="text-purple-400 hover:text-purple-300 font-medium">
+              Cadastre-se
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Componente Registro
+const Register = ({ onRegister, onToggleMode }) => {
+  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await axios.post(`${API}/register`, formData);
+      onRegister(response.data);
+    } catch (error) {
+      setError(error.response?.data?.detail || 'Erro no cadastro');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center px-4">
+      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8 w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">Crie sua conta</h1>
+          <p className="text-gray-400">Comece sua jornada fitness hoje</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-white mb-2">Nome completo</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              className="w-full bg-gray-700/70 text-white p-4 rounded-xl border border-gray-600 focus:border-purple-500 focus:outline-none transition-colors"
+              placeholder="Seu nome completo"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-white mb-2">Email</label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              className="w-full bg-gray-700/70 text-white p-4 rounded-xl border border-gray-600 focus:border-purple-500 focus:outline-none transition-colors"
+              placeholder="seu@email.com"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-white mb-2">Senha</label>
+            <input
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              className="w-full bg-gray-700/70 text-white p-4 rounded-xl border border-gray-600 focus:border-purple-500 focus:outline-none transition-colors"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 text-red-300 p-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 px-4 rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 disabled:opacity-50"
+          >
+            {loading ? 'Criando conta...' : 'Criar conta'}
+          </button>
+        </form>
+
+        <div className="text-center mt-6">
+          <p className="text-gray-400">
+            Já tem uma conta?{' '}
+            <button onClick={onToggleMode} className="text-purple-400 hover:text-purple-300 font-medium">
+              Faça login
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Componente Header
-const Header = ({ userName = "João Guilherme" }) => {
+const Header = ({ userName, onLogout }) => {
   return (
     <header className="bg-gradient-to-r from-purple-900 to-violet-900 px-4 py-6 shadow-lg">
       <div className="max-w-md mx-auto flex items-center justify-between">
@@ -17,7 +207,7 @@ const Header = ({ userName = "João Guilherme" }) => {
             <p className="text-purple-200 text-sm">Pronto para treinar?</p>
           </div>
         </div>
-        <button className="text-white hover:bg-white/10 p-2 rounded-lg transition-colors">
+        <button onClick={onLogout} className="text-white hover:bg-white/10 p-2 rounded-lg transition-colors">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
@@ -52,6 +242,142 @@ const MotivationalQuote = () => {
         <div className="text-center">
           <p className="text-white font-semibold text-lg mb-2">{quote}</p>
           <p className="text-white/80 text-sm">Dica motivacional do dia</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Componente Chat com IA
+const AIChat = ({ onBack, user }) => {
+  const [messages, setMessages] = useState([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sessionId] = useState(() => Date.now().toString());
+
+  useEffect(() => {
+    // Mensagem de boas-vindas
+    setMessages([{
+      id: 1,
+      type: 'ai',
+      message: 'Olá! Eu sou seu personal trainer virtual! 🏋️‍♂️\n\nEstou aqui para ajudar você a criar o treino perfeito para seus objetivos. Me conte:\n\n• Qual seu nível de condicionamento físico? (iniciante, intermediário, avançado)\n• Quais seus objetivos? (perder peso, ganhar massa, resistência, etc.)\n• Que equipamentos você tem disponível em casa?\n• Quanto tempo você tem para treinar?\n• Tem alguma limitação física que devo saber?\n\nVamos criar um treino incrível juntos! 💪'
+    }]);
+  }, []);
+
+  const sendMessage = async () => {
+    if (!inputMessage.trim() || loading) return;
+
+    const userMessage = {
+      id: Date.now(),
+      type: 'user',
+      message: inputMessage
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage('');
+    setLoading(true);
+
+    try {
+      const response = await axios.post(`${API}/chat`, {
+        session_id: sessionId,
+        user_id: user.user_id,
+        message: inputMessage
+      });
+
+      const aiMessage = {
+        id: Date.now() + 1,
+        type: 'ai',
+        message: response.data.response
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('Erro no chat:', error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        type: 'ai',
+        message: 'Desculpe, houve um erro. Tente novamente em alguns instantes.'
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  return (
+    <div className="px-4 h-screen flex flex-col">
+      <div className="flex items-center mb-6">
+        <button onClick={onBack} className="text-white mr-4 hover:bg-white/10 p-2 rounded-lg">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div className="flex items-center">
+          <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mr-3">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-white">Personal Trainer IA</h2>
+        </div>
+      </div>
+
+      {/* Chat Messages */}
+      <div className="flex-1 overflow-y-auto mb-4 space-y-4 max-h-[calc(100vh-200px)]">
+        {messages.map((message) => (
+          <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[80%] p-4 rounded-2xl ${
+              message.type === 'user' 
+                ? 'bg-purple-600 text-white' 
+                : 'bg-gray-800/50 text-white border border-gray-700/50'
+            }`}>
+              <p className="whitespace-pre-wrap">{message.message}</p>
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-800/50 text-white border border-gray-700/50 p-4 rounded-2xl">
+              <div className="flex items-center space-x-2">
+                <div className="animate-pulse flex space-x-1">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                </div>
+                <span className="text-gray-400">Pensando...</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Input Area */}
+      <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4">
+        <div className="flex space-x-2">
+          <textarea
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Digite sua mensagem..."
+            className="flex-1 bg-transparent text-white placeholder-gray-400 resize-none outline-none max-h-20"
+            rows="1"
+          />
+          <button
+            onClick={sendMessage}
+            disabled={loading || !inputMessage.trim()}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-3 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 disabled:opacity-50"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          </button>
         </div>
       </div>
     </div>
@@ -196,8 +522,9 @@ const WorkoutCard = ({ title, duration, exercises, difficulty, category, onStart
   );
 };
 
-// Componente Novo Treino
-const NewWorkout = ({ onBack, onSaveWorkout }) => {
+// Componente Novo Treino com IA
+const NewWorkout = ({ onBack, onSaveWorkout, user }) => {
+  const [showAI, setShowAI] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
   const [workoutCategory, setWorkoutCategory] = useState('');
   const [exercises, setExercises] = useState([]);
@@ -244,6 +571,10 @@ const NewWorkout = ({ onBack, onSaveWorkout }) => {
     }
   };
 
+  if (showAI) {
+    return <AIChat onBack={() => setShowAI(false)} user={user} />;
+  }
+
   return (
     <div className="px-4">
       <div className="flex items-center mb-6">
@@ -253,6 +584,22 @@ const NewWorkout = ({ onBack, onSaveWorkout }) => {
           </svg>
         </button>
         <h2 className="text-2xl font-bold text-white">Criar Novo Treino</h2>
+      </div>
+
+      {/* Opção de IA */}
+      <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 p-6 rounded-xl border border-purple-500/30 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-white font-bold text-lg mb-2">🤖 Personal Trainer IA</h3>
+            <p className="text-purple-200 text-sm">Deixe nossa IA criar um treino personalizado para você!</p>
+          </div>
+          <button
+            onClick={() => setShowAI(true)}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 px-6 rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105"
+          >
+            Usar IA
+          </button>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -1117,6 +1464,8 @@ const Settings = ({ onBack }) => {
 
 // Componente Principal do App
 function App() {
+  const [user, setUser] = useState(null);
+  const [showLogin, setShowLogin] = useState(true);
   const [currentView, setCurrentView] = useState('home');
   const [userStats, setUserStats] = useState({
     weight: 73,
@@ -1126,6 +1475,14 @@ function App() {
   });
 
   const [customWorkouts, setCustomWorkouts] = useState([]);
+
+  // Verificar se há usuário logado no localStorage
+  useEffect(() => {
+    const savedUser = localStorage.getItem('gymUser');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+  }, []);
 
   const defaultWorkouts = [
     {
@@ -1159,6 +1516,22 @@ function App() {
 
   const allWorkouts = [...defaultWorkouts, ...customWorkouts];
 
+  const handleLogin = (userData) => {
+    setUser(userData);
+    localStorage.setItem('gymUser', JSON.stringify(userData));
+  };
+
+  const handleRegister = (userData) => {
+    setUser(userData);
+    localStorage.setItem('gymUser', JSON.stringify(userData));
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('gymUser');
+    setCurrentView('home');
+  };
+
   const handleActionClick = (actionId) => {
     setCurrentView(actionId);
   };
@@ -1171,6 +1544,21 @@ function App() {
     setCustomWorkouts(prev => [...prev, newWorkout]);
   };
 
+  // Se não estiver logado, mostrar tela de login/registro
+  if (!user) {
+    return showLogin ? (
+      <Login 
+        onLogin={handleLogin} 
+        onToggleMode={() => setShowLogin(false)} 
+      />
+    ) : (
+      <Register 
+        onRegister={handleRegister} 
+        onToggleMode={() => setShowLogin(true)} 
+      />
+    );
+  }
+
   const renderCurrentView = () => {
     switch (currentView) {
       case 'workout':
@@ -1178,6 +1566,7 @@ function App() {
           <NewWorkout 
             onBack={() => setCurrentView('home')} 
             onSaveWorkout={handleSaveWorkout}
+            user={user}
           />
         );
       case 'schedule':
@@ -1248,7 +1637,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
-      <Header userName="João Guilherme" />
+      <Header userName={user.name} onLogout={handleLogout} />
       <div className="pb-8">
         {renderCurrentView()}
       </div>
