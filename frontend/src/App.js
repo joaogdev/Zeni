@@ -541,11 +541,11 @@ const AIChat = ({ onBack, user }) => {
   const [sessionId] = useState(() => Date.now().toString());
 
   useEffect(() => {
-    // Mensagem de boas-vindas
+    // Mensagem informativa sobre indisponibilidade temporária
     setMessages([{
       id: 1,
       type: 'ai',
-      message: 'Olá! Eu sou seu personal trainer virtual! 🏋️‍♂️\n\nEstou aqui para ajudar você a criar o treino perfeito para seus objetivos. Me conte:\n\n• Qual seu nível de condicionamento físico? (iniciante, intermediário, avançado)\n• Quais seus objetivos? (perder peso, ganhar massa, resistência, etc.)\n• Que equipamentos você tem disponível em casa?\n• Quanto tempo você tem para treinar?\n• Tem alguma limitação física que devo saber?\n\nVamos criar um treino incrível juntos! 💪'
+      message: '🚧 **Personal Trainer IA Temporariamente Indisponível** 🚧\n\nOlá! Infelizmente nossa IA está temporariamente fora do ar para manutenção.\n\n**Enquanto isso, você pode:**\n• Usar a criação manual de treinos na tela anterior\n• Escolher exercícios específicos por categoria (Cardio, Força, HIIT, etc.)\n• Salvar seus treinos personalizados\n\n**Em breve estaremos de volta com:**\n• Treinos 100% personalizados\n• Sugestões baseadas em seus objetivos\n• Dicas de execução e segurança\n\nObrigado pela compreensão! 💪\n\n---\n\n*Volte para a tela anterior e crie seu treino manualmente por enquanto.*'
     }]);
   }, []);
 
@@ -578,12 +578,18 @@ const AIChat = ({ onBack, user }) => {
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
       console.error('Erro no chat:', error);
-      const errorMessage = {
+      let errorMessage = 'Desculpe, a IA está temporariamente indisponível.';
+      
+      if (error.response?.status === 503) {
+        errorMessage = error.response.data.detail || 'IA temporariamente indisponível para manutenção.';
+      }
+      
+      const aiErrorMessage = {
         id: Date.now() + 1,
         type: 'ai',
-        message: 'Desculpe, houve um erro. Tente novamente em alguns instantes.'
+        message: `🚧 ${errorMessage}\n\nPor favor, use a criação manual de treinos por enquanto. Voltamos em breve! 💪`
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, aiErrorMessage]);
     } finally {
       setLoading(false);
     }
@@ -605,12 +611,15 @@ const AIChat = ({ onBack, user }) => {
           </svg>
         </button>
         <div className="flex items-center">
-          <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mr-3">
+          <div className="w-8 h-8 bg-gradient-to-r from-gray-500 to-gray-600 rounded-full flex items-center justify-center mr-3">
             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-white">Personal Trainer IA</h2>
+          <div>
+            <h2 className="text-2xl font-bold text-white">Personal Trainer IA</h2>
+            <p className="text-gray-400 text-sm">Temporariamente indisponível</p>
+          </div>
         </div>
       </div>
 
@@ -632,38 +641,38 @@ const AIChat = ({ onBack, user }) => {
             <div className="bg-gray-800/50 text-white border border-gray-700/50 p-4 rounded-2xl">
               <div className="flex items-center space-x-2">
                 <div className="animate-pulse flex space-x-1">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                 </div>
-                <span className="text-gray-400">Pensando...</span>
+                <span className="text-gray-400">Verificando disponibilidade...</span>
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4">
+      {/* Input Area - Desabilitado */}
+      <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4 opacity-50">
         <div className="flex space-x-2">
           <textarea
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Digite sua mensagem..."
-            className="flex-1 bg-transparent text-white placeholder-gray-400 resize-none outline-none max-h-20"
+            value="IA temporariamente indisponível"
+            placeholder="Chat temporariamente desabilitado..."
+            className="flex-1 bg-transparent text-gray-500 placeholder-gray-500 resize-none outline-none max-h-20"
             rows="1"
+            disabled
+            readOnly
           />
           <button
-            onClick={sendMessage}
-            disabled={loading || !inputMessage.trim()}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-3 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 disabled:opacity-50"
+            disabled
+            className="bg-gray-600 text-gray-400 p-3 rounded-lg cursor-not-allowed"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636" />
             </svg>
           </button>
         </div>
+        <p className="text-xs text-gray-500 mt-2 text-center">Use a criação manual na tela anterior</p>
       </div>
     </div>
   );
