@@ -1751,6 +1751,7 @@ const Settings = ({ onBack }) => {
 function App() {
   const [user, setUser] = useState(null);
   const [showLogin, setShowLogin] = useState(true);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [currentView, setCurrentView] = useState('home');
   const [userStats, setUserStats] = useState({
     weight: 73,
@@ -1760,6 +1761,15 @@ function App() {
   });
 
   const [customWorkouts, setCustomWorkouts] = useState([]);
+
+  // Verificar se é uma página de reset de senha
+  const urlParams = new URLSearchParams(window.location.search);
+  const isResetPage = urlParams.get('token') !== null;
+
+  // Se for página de reset, mostrar apenas o componente de reset
+  if (isResetPage) {
+    return <ResetPasswordPage />;
+  }
 
   // Verificar se há usuário logado no localStorage
   useEffect(() => {
@@ -1829,12 +1839,21 @@ function App() {
     setCustomWorkouts(prev => [...prev, newWorkout]);
   };
 
-  // Se não estiver logado, mostrar tela de login/registro
+  // Se não estiver logado, mostrar tela de login/registro/forgot password
   if (!user) {
+    if (showForgotPassword) {
+      return (
+        <ForgotPassword 
+          onBack={() => setShowForgotPassword(false)}
+        />
+      );
+    }
+    
     return showLogin ? (
       <Login 
         onLogin={handleLogin} 
-        onToggleMode={() => setShowLogin(false)} 
+        onToggleMode={() => setShowLogin(false)}
+        onForgotPassword={() => setShowForgotPassword(true)}
       />
     ) : (
       <Register 
