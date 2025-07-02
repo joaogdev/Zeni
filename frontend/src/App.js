@@ -6,7 +6,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 // Componente Login
-const Login = ({ onLogin, onToggleMode }) => {
+const Login = ({ onLogin, onToggleMode, onForgotPassword }) => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -80,6 +80,12 @@ const Login = ({ onLogin, onToggleMode }) => {
         </form>
 
         <div className="text-center mt-6">
+          <button 
+            onClick={onForgotPassword}
+            className="text-purple-400 hover:text-purple-300 font-medium mb-4 block mx-auto"
+          >
+            Esqueceu a senha?
+          </button>
           <p className="text-gray-400">
             Não tem uma conta?{' '}
             <button onClick={onToggleMode} className="text-purple-400 hover:text-purple-300 font-medium">
