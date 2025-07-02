@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,9 +6,11 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 import uuid
 from datetime import datetime
+import asyncio
+from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 
 ROOT_DIR = Path(__file__).parent
@@ -35,7 +37,50 @@ class StatusCheck(BaseModel):
 class StatusCheckCreate(BaseModel):
     client_name: str
 
-# Add your routes to the router instead of directly to app
+class User(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    email: str
+    password: str  # Em produção, seria hasheada
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class UserCreate(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class ChatMessage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    session_id: str
+    user_id: str
+    message: str
+    response: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+class ChatRequest(BaseModel):
+    session_id: str
+    user_id: str
+    message: str
+
+class WorkoutPlan(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    title: str
+    category: str
+    exercises: List[dict]
+    duration: str
+    difficulty: str
+    created_by_ai: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# OpenAI API Key
+OPENAI_API_KEY = "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"
+
+# Routes originais
 @api_router.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -51,6 +96,98 @@ async def create_status_check(input: StatusCheckCreate):
 async def get_status_checks():
     status_checks = await db.status_checks.find().to_list(1000)
     return [StatusCheck(**status_check) for status_check in status_checks]
+
+# Rotas de Autenticação
+@api_router.post("/register")
+async def register(user_data: UserCreate):
+    # Verificar se o email já existe
+    existing_user = await db.users.find_one({"email": user_data.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
+    
+    # Criar novo usuário
+    user = User(**user_data.dict())
+    await db.users.insert_one(user.dict())
+    
+    return {"message": "Usuário criado com sucesso", "user_id": user.id, "name": user.name}
+
+@api_router.post("/login")
+async def login(login_data: UserLogin):
+    # Buscar usuário
+    user = await db.users.find_one({"email": login_data.email, "password": login_data.password})
+    if not user:
+        raise HTTPException(status_code=401, detail="Email ou senha incorretos")
+    
+    return {"message": "Login realizado com sucesso", "user_id": user["id"], "name": user["name"]}
+
+# Rotas do Chat de IA
+@api_router.post("/chat")
+async def chat_with_ai(chat_request: ChatRequest):
+    try:
+        # Sistema de mensagem para a IA
+        system_message = """Você é um personal trainer especializado em treinos em casa. 
+        Ajude o usuário a criar planos de treino personalizados baseados em:
+        - Nível de condicionamento físico
+        - Objetivos (perder peso, ganhar massa, resistência, etc.)
+        - Equipamentos disponíveis
+        - Tempo disponível
+        - Limitações físicas
+        
+        Forneça exercícios específicos com:
+        - Nome do exercício
+        - Número de séries
+        - Número de repetições
+        - Tempo de descanso
+        - Instruções de execução
+        - Dicas de segurança
+        
+        Seja motivador e educativo. Responda em português brasileiro."""
+        
+        # Inicializar chat
+        chat = LlmChat(
+            api_key=OPENAI_API_KEY,
+            session_id=chat_request.session_id,
+            system_message=system_message
+        ).with_model("openai", "gpt-4o")
+        
+        # Criar mensagem do usuário
+        user_message = UserMessage(text=chat_request.message)
+        
+        # Enviar mensagem e obter resposta
+        response = await chat.send_message(user_message)
+        
+        # Salvar no banco de dados
+        chat_message = ChatMessage(
+            session_id=chat_request.session_id,
+            user_id=chat_request.user_id,
+            message=chat_request.message,
+            response=response
+        )
+        await db.chat_messages.insert_one(chat_message.dict())
+        
+        return {"response": response, "session_id": chat_request.session_id}
+        
+    except Exception as e:
+        logger.error(f"Erro no chat: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro no processamento: {str(e)}")
+
+# Buscar histórico de chat
+@api_router.get("/chat/{session_id}")
+async def get_chat_history(session_id: str):
+    messages = await db.chat_messages.find({"session_id": session_id}).sort("timestamp", 1).to_list(100)
+    return messages
+
+# Salvar plano de treino criado pela IA
+@api_router.post("/workouts")
+async def save_workout(workout: WorkoutPlan):
+    await db.workouts.insert_one(workout.dict())
+    return {"message": "Treino salvo com sucesso", "workout_id": workout.id}
+
+# Buscar treinos do usuário
+@api_router.get("/workouts/{user_id}")
+async def get_user_workouts(user_id: str):
+    workouts = await db.workouts.find({"user_id": user_id}).sort("created_at", -1).to_list(100)
+    return workouts
 
 # Include the router in the main app
 app.include_router(api_router)
