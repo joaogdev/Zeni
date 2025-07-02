@@ -242,6 +242,10 @@ async def chat_with_ai(chat_request: ChatRequest):
         
         Seja motivador e educativo. Responda em português brasileiro."""
         
+        # Verificar se a API key está configurada
+        if not OPENAI_API_KEY or OPENAI_API_KEY == "":
+            raise HTTPException(status_code=503, detail="IA temporariamente indisponível - API key não configurada")
+        
         # Inicializar chat
         chat = LlmChat(
             api_key=OPENAI_API_KEY,
@@ -268,10 +272,20 @@ async def chat_with_ai(chat_request: ChatRequest):
         
     except ImportError as e:
         logger.error(f"Erro de importação: {str(e)}")
-        raise HTTPException(status_code=500, detail="Erro na configuração da IA. Tente novamente.")
+        raise HTTPException(status_code=503, detail="IA temporariamente indisponível - erro de configuração")
     except Exception as e:
+        error_msg = str(e).lower()
         logger.error(f"Erro no chat: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Erro no processamento: {str(e)}")
+        
+        # Verificar tipos específicos de erro
+        if "authentication" in error_msg or "api key" in error_msg or "incorrect" in error_msg:
+            raise HTTPException(status_code=503, detail="IA temporariamente indisponível - chave de API inválida")
+        elif "quota" in error_msg or "limit" in error_msg:
+            raise HTTPException(status_code=503, detail="IA temporariamente indisponível - limite de uso excedido")
+        elif "network" in error_msg or "connection" in error_msg:
+            raise HTTPException(status_code=503, detail="IA temporariamente indisponível - problemas de conexão")
+        else:
+            raise HTTPException(status_code=503, detail="IA temporariamente indisponível - tente novamente em alguns instantes")
 
 # Buscar histórico de chat
 @api_router.get("/chat/{session_id}")
