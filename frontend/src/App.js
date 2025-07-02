@@ -5,6 +5,285 @@ import axios from 'axios';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// Componente Esqueceu a Senha
+const ForgotPassword = ({ onBack }) => {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [resetLink, setResetLink] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
+    try {
+      const response = await axios.post(`${API}/forgot-password`, { email });
+      setMessage(response.data.message);
+      if (response.data.reset_link) {
+        setResetLink(response.data.reset_link);
+      }
+    } catch (error) {
+      setMessage('Erro ao processar solicitação. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openResetLink = () => {
+    window.open(resetLink, '_blank');
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center px-4">
+      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8 w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">Recuperar Senha</h1>
+          <p className="text-gray-400">Digite seu email para receber as instruções de recuperação</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-white mb-2">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-gray-700/70 text-white p-4 rounded-xl border border-gray-600 focus:border-blue-500 focus:outline-none transition-colors"
+              placeholder="seu@email.com"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-4 px-4 rounded-xl font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 transform hover:scale-105 disabled:opacity-50"
+          >
+            {loading ? 'Enviando...' : 'Enviar Instruções'}
+          </button>
+        </form>
+
+        {message && (
+          <div className="mt-6 p-4 bg-green-500/20 border border-green-500/50 text-green-300 rounded-lg text-sm">
+            {message}
+          </div>
+        )}
+
+        {resetLink && (
+          <div className="mt-4 p-4 bg-blue-500/20 border border-blue-500/50 text-blue-300 rounded-lg">
+            <p className="text-sm mb-3">Para demonstração, o link de recuperação é:</p>
+            <button
+              onClick={openResetLink}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 px-4 rounded-lg font-medium hover:from-purple-600 hover:to-pink-600 transition-all duration-300"
+            >
+              Abrir Link de Recuperação
+            </button>
+            <p className="text-xs mt-2 text-gray-400">Em um ambiente real, este link seria enviado por email</p>
+          </div>
+        )}
+
+        <div className="text-center mt-6">
+          <button onClick={onBack} className="text-purple-400 hover:text-purple-300 font-medium">
+            Voltar ao Login
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Componente Redefinir Senha
+const ResetPassword = ({ token, onSuccess, onError }) => {
+  const [formData, setFormData] = useState({ new_password: '', confirm_password: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [tokenValid, setTokenValid] = useState(false);
+  const [checkingToken, setCheckingToken] = useState(true);
+
+  useEffect(() => {
+    const verifyToken = async () => {
+      try {
+        await axios.get(`${API}/verify-reset-token/${token}`);
+        setTokenValid(true);
+      } catch (error) {
+        setError('Token inválido ou expirado');
+        onError('Token inválido ou expirado');
+      } finally {
+        setCheckingToken(false);
+      }
+    };
+
+    if (token) {
+      verifyToken();
+    } else {
+      setError('Token não fornecido');
+      setCheckingToken(false);
+    }
+  }, [token, onError]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    if (formData.new_password !== formData.confirm_password) {
+      setError('As senhas não coincidem');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.new_password.length < 6) {
+      setError('A senha deve ter pelo menos 6 caracteres');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await axios.post(`${API}/reset-password`, {
+        token,
+        new_password: formData.new_password,
+        confirm_password: formData.confirm_password
+      });
+      onSuccess('Senha alterada com sucesso! Você pode fechar esta aba.');
+    } catch (error) {
+      setError(error.response?.data?.detail || 'Erro ao alterar senha');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (checkingToken) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center px-4">
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8 w-full max-w-md text-center">
+          <div className="animate-pulse">
+            <div className="w-16 h-16 bg-purple-500 rounded-full mx-auto mb-4"></div>
+            <p className="text-white">Verificando token...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!tokenValid) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center px-4">
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8 w-full max-w-md text-center">
+          <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">Token Inválido</h1>
+          <p className="text-red-300">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center px-4">
+      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8 w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">Redefinir Senha</h1>
+          <p className="text-gray-400">Digite sua nova senha</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-white mb-2">Nova Senha</label>
+            <input
+              type="password"
+              value={formData.new_password}
+              onChange={(e) => setFormData({...formData, new_password: e.target.value})}
+              className="w-full bg-gray-700/70 text-white p-4 rounded-xl border border-gray-600 focus:border-green-500 focus:outline-none transition-colors"
+              placeholder="Digite sua nova senha"
+              required
+              minLength="6"
+            />
+          </div>
+
+          <div>
+            <label className="block text-white mb-2">Confirmar Nova Senha</label>
+            <input
+              type="password"
+              value={formData.confirm_password}
+              onChange={(e) => setFormData({...formData, confirm_password: e.target.value})}
+              className="w-full bg-gray-700/70 text-white p-4 rounded-xl border border-gray-600 focus:border-green-500 focus:outline-none transition-colors"
+              placeholder="Confirme sua nova senha"
+              required
+              minLength="6"
+            />
+          </div>
+
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 text-red-300 p-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-4 px-4 rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-300 transform hover:scale-105 disabled:opacity-50"
+          >
+            {loading ? 'Alterando...' : 'Alterar Senha'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Componente para gerenciar a página de reset de senha
+const ResetPasswordPage = () => {
+  const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState('');
+
+  // Extrair token da URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
+
+  const handleSuccess = (message) => {
+    setSuccess(true);
+    setSuccessMessage(message);
+  };
+
+  const handleError = (message) => {
+    setError(message);
+  };
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center px-4">
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-8 w-full max-w-md text-center">
+          <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">Sucesso!</h1>
+          <p className="text-green-300">{successMessage}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <ResetPassword token={token} onSuccess={handleSuccess} onError={handleError} />;
+};
+
 // Componente Login
 const Login = ({ onLogin, onToggleMode, onForgotPassword }) => {
   const [formData, setFormData] = useState({ email: '', password: '' });
