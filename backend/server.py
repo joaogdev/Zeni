@@ -8,9 +8,10 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 import asyncio
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+import secrets
+import hashlib
 
 
 ROOT_DIR = Path(__file__).parent
@@ -52,6 +53,22 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: str
     password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+    confirm_password: str
+
+class PasswordResetToken(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    token: str
+    expires_at: datetime
+    used: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class ChatMessage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -120,10 +137,92 @@ async def login(login_data: UserLogin):
     
     return {"message": "Login realizado com sucesso", "user_id": user["id"], "name": user["name"]}
 
+# Rotas de Recuperação de Senha
+@api_router.post("/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+    # Verificar se o usuário existe
+    user = await db.users.find_one({"email": request.email})
+    if not user:
+        # Por segurança, não informamos se o email existe ou não
+        return {"message": "Se o email estiver cadastrado, você receberá as instruções de recuperação"}
+    
+    # Gerar token de recuperação
+    reset_token = secrets.token_urlsafe(32)
+    expires_at = datetime.utcnow() + timedelta(hours=1)  # Token válido por 1 hora
+    
+    # Salvar token no banco
+    token_data = PasswordResetToken(
+        user_id=user["id"],
+        token=reset_token,
+        expires_at=expires_at
+    )
+    await db.password_reset_tokens.insert_one(token_data.dict())
+    
+    # Em um ambiente real, você enviaria um email aqui
+    # Para este demo, vamos retornar o link de reset
+    reset_link = f"http://localhost:3000/reset-password?token={reset_token}"
+    
+    return {
+        "message": "Se o email estiver cadastrado, você receberá as instruções de recuperação",
+        "reset_link": reset_link,  # Em produção, isso seria enviado por email
+        "demo_info": "Em um ambiente real, este link seria enviado por email"
+    }
+
+@api_router.post("/reset-password")
+async def reset_password(request: ResetPasswordRequest):
+    # Verificar se as senhas coincidem
+    if request.new_password != request.confirm_password:
+        raise HTTPException(status_code=400, detail="As senhas não coincidem")
+    
+    # Verificar se a senha tem pelo menos 6 caracteres
+    if len(request.new_password) < 6:
+        raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 6 caracteres")
+    
+    # Buscar token válido
+    token_data = await db.password_reset_tokens.find_one({
+        "token": request.token,
+        "used": False,
+        "expires_at": {"$gt": datetime.utcnow()}
+    })
+    
+    if not token_data:
+        raise HTTPException(status_code=400, detail="Token inválido ou expirado")
+    
+    # Atualizar senha do usuário
+    await db.users.update_one(
+        {"id": token_data["user_id"]},
+        {"$set": {"password": request.new_password}}
+    )
+    
+    # Marcar token como usado
+    await db.password_reset_tokens.update_one(
+        {"token": request.token},
+        {"$set": {"used": True}}
+    )
+    
+    return {"message": "Senha alterada com sucesso"}
+
+@api_router.get("/verify-reset-token/{token}")
+async def verify_reset_token(token: str):
+    # Verificar se o token é válido
+    token_data = await db.password_reset_tokens.find_one({
+        "token": token,
+        "used": False,
+        "expires_at": {"$gt": datetime.utcnow()}
+    })
+    
+    if not token_data:
+        raise HTTPException(status_code=400, detail="Token inválido ou expirado")
+    
+    return {"valid": True, "message": "Token válido"}
+
 # Rotas do Chat de IA
 @api_router.post("/chat")
 async def chat_with_ai(chat_request: ChatRequest):
     try:
+        # Importar aqui para evitar problemas de importação
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        
         # Sistema de mensagem para a IA
         system_message = """Você é um personal trainer especializado em treinos em casa. 
         Ajude o usuário a criar planos de treino personalizados baseados em:
@@ -167,6 +266,9 @@ async def chat_with_ai(chat_request: ChatRequest):
         
         return {"response": response, "session_id": chat_request.session_id}
         
+    except ImportError as e:
+        logger.error(f"Erro de importação: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro na configuração da IA. Tente novamente.")
     except Exception as e:
         logger.error(f"Erro no chat: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro no processamento: {str(e)}")
