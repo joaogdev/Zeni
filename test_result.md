@@ -102,7 +102,83 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the complete home gym fitness app functionality including Dashboard Navigation, Novo Treino Section, Agenda Section, Saúde Section, Config Section, and Overall App Flow."
+user_problem_statement: "Test the Supabase-integrated backend API. The backend has been migrated from MongoDB to Supabase (PostgreSQL)."
+
+backend:
+  - task: "Health Check Endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Initial testing of health check endpoint."
+        - working: true
+        - agent: "testing"
+        - comment: "Successfully tested the health check endpoint (GET /api/). Received expected response with status code 200 and message 'Hello World'."
+
+  - task: "User Registration"
+    implemented: true
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Initial testing of user registration endpoint."
+        - working: false
+        - agent: "testing"
+        - comment: "The user registration endpoint (POST /api/register) returned a 500 error with message: 'Database error: relation \"public.users\" does not exist'. This is expected as the Supabase tables need to be created first using the SQL in /app/supabase_schema.sql."
+
+  - task: "User Login"
+    implemented: true
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Initial testing of user login endpoint."
+        - working: false
+        - agent: "testing"
+        - comment: "The user login endpoint (POST /api/login) returned a 500 error with message: 'Database error: relation \"public.users\" does not exist'. This is expected as the Supabase tables need to be created first using the SQL in /app/supabase_schema.sql."
+
+  - task: "Create Status Check"
+    implemented: true
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Initial testing of status check creation endpoint."
+        - working: false
+        - agent: "testing"
+        - comment: "The status check creation endpoint (POST /api/status) returned a 500 error. This is expected as the Supabase tables need to be created first using the SQL in /app/supabase_schema.sql."
+
+  - task: "Get Status Checks"
+    implemented: true
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Initial testing of get status checks endpoint."
+        - working: false
+        - agent: "testing"
+        - comment: "The get status checks endpoint (GET /api/status) returned a 500 error with message: 'Database error: relation \"public.status_checks\" does not exist'. This is expected as the Supabase tables need to be created first using the SQL in /app/supabase_schema.sql."
 
 frontend:
   - task: "Dashboard Navigation"
@@ -210,7 +286,7 @@ frontend:
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 3
+  test_sequence: 4
   run_ui: true
 
 test_plan:
@@ -226,3 +302,5 @@ agent_communication:
     - message: "Successfully tested Dashboard Navigation and Novo Treino Section. Having issues with selectors for the other sections. Will need to improve the testing approach."
     - agent: "testing"
     - message: "Successfully tested all sections of the app. The app is functioning as expected with all core features working properly. Navigation between sections is smooth, and data persists between sections."
+    - agent: "testing"
+    - message: "Completed testing of the Supabase-integrated backend API. The health check endpoint is working correctly, but all other endpoints are returning 500 errors because the Supabase tables don't exist yet. This is expected behavior as mentioned in the review request. The tables need to be created using the SQL in /app/supabase_schema.sql."
