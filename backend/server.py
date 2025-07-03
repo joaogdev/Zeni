@@ -1,7 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
@@ -9,25 +8,18 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
 from datetime import datetime, timedelta
-import asyncio
 import secrets
 import hashlib
-
+from supabase_client import supabase
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
-
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
 
 # Create the main app without a prefix
 app = FastAPI()
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
-
 
 # Define Models
 class StatusCheck(BaseModel):
@@ -97,6 +89,18 @@ class WorkoutPlan(BaseModel):
 # OpenAI API Key
 OPENAI_API_KEY = "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"
 
+# Helper functions for Supabase operations
+def convert_datetime_to_string(obj):
+    """Convert datetime objects to ISO format strings for Supabase"""
+    if isinstance(obj, dict):
+        return {key: convert_datetime_to_string(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_datetime_to_string(item) for item in obj]
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    else:
+        return obj
+
 # Routes originais
 @api_router.get("/")
 async def root():
@@ -104,117 +108,168 @@ async def root():
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.dict()
-    status_obj = StatusCheck(**status_dict)
-    _ = await db.status_checks.insert_one(status_obj.dict())
-    return status_obj
+    status_obj = StatusCheck(**input.dict())
+    
+    # Convert datetime for Supabase
+    status_data = convert_datetime_to_string(status_obj.dict())
+    
+    try:
+        response = supabase.table('status_checks').insert(status_data).execute()
+        if response.data:
+            return status_obj
+        else:
+            raise HTTPException(status_code=500, detail="Failed to create status check")
+    except Exception as e:
+        logging.error(f"Error creating status check: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @api_router.get("/status", response_model=List[StatusCheck])
 async def get_status_checks():
-    status_checks = await db.status_checks.find().to_list(1000)
-    return [StatusCheck(**status_check) for status_check in status_checks]
+    try:
+        response = supabase.table('status_checks').select("*").execute()
+        if response.data:
+            return [StatusCheck(**item) for item in response.data]
+        return []
+    except Exception as e:
+        logging.error(f"Error getting status checks: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 # Rotas de Autenticação
 @api_router.post("/register")
 async def register(user_data: UserCreate):
-    # Verificar se o email já existe
-    existing_user = await db.users.find_one({"email": user_data.email})
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email já cadastrado")
-    
-    # Criar novo usuário
-    user = User(**user_data.dict())
-    await db.users.insert_one(user.dict())
-    
-    return {"message": "Usuário criado com sucesso", "user_id": user.id, "name": user.name}
+    try:
+        # Verificar se o email já existe
+        existing_user_response = supabase.table('users').select("*").eq('email', user_data.email).execute()
+        if existing_user_response.data:
+            raise HTTPException(status_code=400, detail="Email já cadastrado")
+        
+        # Criar novo usuário
+        user = User(**user_data.dict())
+        user_data_dict = convert_datetime_to_string(user.dict())
+        
+        response = supabase.table('users').insert(user_data_dict).execute()
+        if response.data:
+            return {"message": "Usuário criado com sucesso", "user_id": user.id, "name": user.name}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to create user")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error registering user: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @api_router.post("/login")
 async def login(login_data: UserLogin):
-    # Buscar usuário
-    user = await db.users.find_one({"email": login_data.email, "password": login_data.password})
-    if not user:
-        raise HTTPException(status_code=401, detail="Email ou senha incorretos")
-    
-    return {"message": "Login realizado com sucesso", "user_id": user["id"], "name": user["name"]}
+    try:
+        # Buscar usuário
+        response = supabase.table('users').select("*").eq('email', login_data.email).eq('password', login_data.password).execute()
+        if not response.data:
+            raise HTTPException(status_code=401, detail="Email ou senha incorretos")
+        
+        user = response.data[0]
+        return {"message": "Login realizado com sucesso", "user_id": user["id"], "name": user["name"]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error during login: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 # Rotas de Recuperação de Senha
 @api_router.post("/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
-    # Verificar se o usuário existe
-    user = await db.users.find_one({"email": request.email})
-    if not user:
-        # Por segurança, não informamos se o email existe ou não
-        return {"message": "Se o email estiver cadastrado, você receberá as instruções de recuperação"}
-    
-    # Gerar token de recuperação
-    reset_token = secrets.token_urlsafe(32)
-    expires_at = datetime.utcnow() + timedelta(hours=1)  # Token válido por 1 hora
-    
-    # Salvar token no banco
-    token_data = PasswordResetToken(
-        user_id=user["id"],
-        token=reset_token,
-        expires_at=expires_at
-    )
-    await db.password_reset_tokens.insert_one(token_data.dict())
-    
-    # Em um ambiente real, você enviaria um email aqui
-    # Para este demo, vamos retornar o link de reset
-    reset_link = f"http://localhost:3000/reset-password?token={reset_token}"
-    
-    return {
-        "message": "Se o email estiver cadastrado, você receberá as instruções de recuperação",
-        "reset_link": reset_link,  # Em produção, isso seria enviado por email
-        "demo_info": "Em um ambiente real, este link seria enviado por email"
-    }
+    try:
+        # Verificar se o usuário existe
+        user_response = supabase.table('users').select("*").eq('email', request.email).execute()
+        if not user_response.data:
+            # Por segurança, não informamos se o email existe ou não
+            return {"message": "Se o email estiver cadastrado, você receberá as instruções de recuperação"}
+        
+        user = user_response.data[0]
+        
+        # Gerar token de recuperação
+        reset_token = secrets.token_urlsafe(32)
+        expires_at = datetime.utcnow() + timedelta(hours=1)  # Token válido por 1 hora
+        
+        # Salvar token no banco
+        token_data = PasswordResetToken(
+            user_id=user["id"],
+            token=reset_token,
+            expires_at=expires_at
+        )
+        
+        token_data_dict = convert_datetime_to_string(token_data.dict())
+        response = supabase.table('password_reset_tokens').insert(token_data_dict).execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=500, detail="Failed to create reset token")
+        
+        # Em um ambiente real, você enviaria um email aqui
+        # Para este demo, vamos retornar o link de reset
+        reset_link = f"http://localhost:3000/reset-password?token={reset_token}"
+        
+        return {
+            "message": "Se o email estiver cadastrado, você receberá as instruções de recuperação",
+            "reset_link": reset_link,  # Em produção, isso seria enviado por email
+            "demo_info": "Em um ambiente real, este link seria enviado por email"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error in forgot password: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @api_router.post("/reset-password")
 async def reset_password(request: ResetPasswordRequest):
-    # Verificar se as senhas coincidem
-    if request.new_password != request.confirm_password:
-        raise HTTPException(status_code=400, detail="As senhas não coincidem")
-    
-    # Verificar se a senha tem pelo menos 6 caracteres
-    if len(request.new_password) < 6:
-        raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 6 caracteres")
-    
-    # Buscar token válido
-    token_data = await db.password_reset_tokens.find_one({
-        "token": request.token,
-        "used": False,
-        "expires_at": {"$gt": datetime.utcnow()}
-    })
-    
-    if not token_data:
-        raise HTTPException(status_code=400, detail="Token inválido ou expirado")
-    
-    # Atualizar senha do usuário
-    await db.users.update_one(
-        {"id": token_data["user_id"]},
-        {"$set": {"password": request.new_password}}
-    )
-    
-    # Marcar token como usado
-    await db.password_reset_tokens.update_one(
-        {"token": request.token},
-        {"$set": {"used": True}}
-    )
-    
-    return {"message": "Senha alterada com sucesso"}
+    try:
+        # Verificar se as senhas coincidem
+        if request.new_password != request.confirm_password:
+            raise HTTPException(status_code=400, detail="As senhas não coincidem")
+        
+        # Verificar se a senha tem pelo menos 6 caracteres
+        if len(request.new_password) < 6:
+            raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 6 caracteres")
+        
+        # Buscar token válido
+        current_time = datetime.utcnow().isoformat()
+        token_response = supabase.table('password_reset_tokens').select("*").eq('token', request.token).eq('used', False).gt('expires_at', current_time).execute()
+        
+        if not token_response.data:
+            raise HTTPException(status_code=400, detail="Token inválido ou expirado")
+        
+        token_data = token_response.data[0]
+        
+        # Atualizar senha do usuário
+        user_update_response = supabase.table('users').update({"password": request.new_password}).eq('id', token_data["user_id"]).execute()
+        
+        if not user_update_response.data:
+            raise HTTPException(status_code=500, detail="Failed to update password")
+        
+        # Marcar token como usado
+        token_update_response = supabase.table('password_reset_tokens').update({"used": True}).eq('token', request.token).execute()
+        
+        return {"message": "Senha alterada com sucesso"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error resetting password: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @api_router.get("/verify-reset-token/{token}")
 async def verify_reset_token(token: str):
-    # Verificar se o token é válido
-    token_data = await db.password_reset_tokens.find_one({
-        "token": token,
-        "used": False,
-        "expires_at": {"$gt": datetime.utcnow()}
-    })
-    
-    if not token_data:
-        raise HTTPException(status_code=400, detail="Token inválido ou expirado")
-    
-    return {"valid": True, "message": "Token válido"}
+    try:
+        # Verificar se o token é válido
+        current_time = datetime.utcnow().isoformat()
+        token_response = supabase.table('password_reset_tokens').select("*").eq('token', token).eq('used', False).gt('expires_at', current_time).execute()
+        
+        if not token_response.data:
+            raise HTTPException(status_code=400, detail="Token inválido ou expirado")
+        
+        return {"valid": True, "message": "Token válido"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error verifying token: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 # Rotas do Chat de IA
 @api_router.post("/chat")
@@ -259,14 +314,16 @@ async def chat_with_ai(chat_request: ChatRequest):
         # Enviar mensagem e obter resposta
         response = await chat.send_message(user_message)
         
-        # Salvar no banco de dados
+        # Salvar no banco de dados Supabase
         chat_message = ChatMessage(
             session_id=chat_request.session_id,
             user_id=chat_request.user_id,
             message=chat_request.message,
             response=response
         )
-        await db.chat_messages.insert_one(chat_message.dict())
+        
+        chat_data = convert_datetime_to_string(chat_message.dict())
+        supabase_response = supabase.table('chat_messages').insert(chat_data).execute()
         
         return {"response": response, "session_id": chat_request.session_id}
         
@@ -290,20 +347,36 @@ async def chat_with_ai(chat_request: ChatRequest):
 # Buscar histórico de chat
 @api_router.get("/chat/{session_id}")
 async def get_chat_history(session_id: str):
-    messages = await db.chat_messages.find({"session_id": session_id}).sort("timestamp", 1).to_list(100)
-    return messages
+    try:
+        response = supabase.table('chat_messages').select("*").eq('session_id', session_id).order('timestamp').execute()
+        return response.data if response.data else []
+    except Exception as e:
+        logging.error(f"Error getting chat history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 # Salvar plano de treino criado pela IA
 @api_router.post("/workouts")
 async def save_workout(workout: WorkoutPlan):
-    await db.workouts.insert_one(workout.dict())
-    return {"message": "Treino salvo com sucesso", "workout_id": workout.id}
+    try:
+        workout_data = convert_datetime_to_string(workout.dict())
+        response = supabase.table('workouts').insert(workout_data).execute()
+        if response.data:
+            return {"message": "Treino salvo com sucesso", "workout_id": workout.id}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save workout")
+    except Exception as e:
+        logging.error(f"Error saving workout: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 # Buscar treinos do usuário
 @api_router.get("/workouts/{user_id}")
 async def get_user_workouts(user_id: str):
-    workouts = await db.workouts.find({"user_id": user_id}).sort("created_at", -1).to_list(100)
-    return workouts
+    try:
+        response = supabase.table('workouts').select("*").eq('user_id', user_id).order('created_at', desc=True).execute()
+        return response.data if response.data else []
+    except Exception as e:
+        logging.error(f"Error getting user workouts: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -322,7 +395,3 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
