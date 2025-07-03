@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the Supabase-integrated backend API. The backend has been migrated from MongoDB to Supabase (PostgreSQL)."
+user_problem_statement: "Connect this project to Supabase database: URL: https://wkmjaxehuxwukhhkjktl.supabase.co API KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrbWpheGVodXh3dWtoaGtqa3RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0OTg5MzEsImV4cCI6MjA2NzA3NDkzMX0.xqqLZEYY6tdQBq2MnJnvyRKtvaca_aMdEl6GoEua7jo"
 
 backend:
   - task: "Health Check Endpoint"
