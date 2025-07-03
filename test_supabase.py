@@ -20,7 +20,12 @@ SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 
 print(f"Supabase URL: {SUPABASE_URL}")
-print(f"Supabase Key: {SUPABASE_KEY[:20]}...")
+print(f"Supabase Key: {SUPABASE_KEY[:20] if SUPABASE_KEY else 'Not found'}...")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("❌ Missing Supabase environment variables!")
+    print("Make sure SUPABASE_URL and SUPABASE_KEY are set in backend/.env")
+    exit(1)
 
 # Create Supabase client
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
