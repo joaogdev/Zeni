@@ -82,10 +82,12 @@ def create_tables():
     for i, sql in enumerate(sql_commands):
         try:
             logger.info(f"Executing SQL command {i+1}/{len(sql_commands)}")
-            response = supabase.query(sql).execute()
+            response = supabase.rpc('exec_sql', {'sql': sql}).execute()
             logger.info(f"Successfully executed command {i+1}")
         except Exception as e:
             logger.error(f"Error executing SQL command {i+1}: {str(e)}")
+            logger.info("Note: Direct SQL execution might require additional setup. Please run these commands manually in Supabase SQL Editor:")
+            logger.info(sql)
             continue
     
     logger.info("Database setup completed!")
