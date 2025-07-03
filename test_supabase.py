@@ -13,7 +13,7 @@ import uuid
 from dotenv import load_dotenv
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).parent.parent / 'backend'
+ROOT_DIR = Path('/app/backend')
 load_dotenv(ROOT_DIR / '.env')
 
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
