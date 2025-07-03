@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timedelta
 import secrets
 import hashlib
-from supabase_client import supabase
+from .supabase_client import supabase
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
