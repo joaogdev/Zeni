@@ -9,6 +9,7 @@ const SupabaseConnectionTest = () => {
     testSupabaseConnection();
   }, []);
 
+
   const testSupabaseConnection = async () => {
     try {
       // Test basic connection by trying to fetch from a table
@@ -55,74 +56,6 @@ const SupabaseConnectionTest = () => {
     }
   };
 
-  return (
-    <div style={{ 
-      padding: '20px', 
-      border: '2px solid #ccc', 
-      borderRadius: '8px', 
-      margin: '20px',
-      backgroundColor: '#f9f9f9'
-    }}>
-      <h3>🔗 Supabase Connection Test</h3>
-      <p><strong>Status:</strong> {connectionStatus}</p>
-      {error && (
-        <div style={{ 
-          backgroundColor: '#fff3cd', 
-          border: '1px solid #ffeaa7', 
-          padding: '10px', 
-          borderRadius: '4px',
-          marginTop: '10px'
-        }}>
-          <strong>Details:</strong> {error}
-        </div>
-      )}
-      
-      <div style={{ marginTop: '15px' }}>
-        <button 
-          onClick={testSupabaseConnection}
-          style={{
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            padding: '8px 16px',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            marginRight: '10px'
-          }}
-        >
-          🔄 Test Connection
-        </button>
-        
-        <button 
-          onClick={testInsert}
-          style={{
-            backgroundColor: '#2196F3',
-            color: 'white',
-            padding: '8px 16px',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          🧪 Test Insert
-        </button>
-      </div>
-      
-      <div style={{ 
-        marginTop: '15px', 
-        fontSize: '14px', 
-        color: '#666'
-      }}>
-        <p><strong>Next Steps:</strong></p>
-        <ol>
-          <li>Go to <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">Supabase Dashboard</a></li>
-          <li>Navigate to SQL Editor</li>
-          <li>Run the SQL schema from <code>/app/supabase_schema.sql</code></li>
-          <li>Test the insert button above</li>
-        </ol>
-      </div>
-    </div>
-  );
 };
 
 export default SupabaseConnectionTest;

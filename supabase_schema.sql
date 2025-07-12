@@ -1,6 +1,6 @@
 -- Supabase Database Schema Setup
 -- Copy and paste this entire SQL script into your Supabase SQL Editor
--- Navigate to: https://supabase.com/dashboard → Your Project → SQL Editor
+-- Navigate to: https://supabase.com    /dashboard → Your Project → SQL Editor
 
 -- Enable UUID extension (required for UUID primary keys)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

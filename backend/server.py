@@ -286,7 +286,11 @@ async def verify_reset_token(token: str):
 async def chat_with_ai(chat_request: ChatRequest):
     try:
         # Importar aqui para evitar problemas de importação
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        # TODO: Certifique-se de instalar o pacote correto ou substitua pelo caminho correto do módulo
+        # Exemplo de substituição se estiver usando o pacote openai:
+        # from openai import OpenAI
+        # Importe LlmChat e UserMessage do módulo correto abaixo:
+        raise HTTPException(status_code=503, detail="IA temporariamente indisponível - módulo de chat não encontrado")
         
         # Sistema de mensagem para a IA
         system_message = """Você é um personal trainer especializado em treinos em casa. 
