@@ -166,9 +166,9 @@ user_problem_statement: "Migração completa do Supabase para MySQL. Criar estru
 backend:
   - task: "MySQL Database Setup"
     implemented: true
-    working: true
+    working: false
     file: "/app/mysql_schema.sql"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: false
     status_history:
@@ -178,6 +178,9 @@ backend:
         - working: true
         - agent: "main"
         - comment: "MySQL instalado e configurado. Database 'fitness_app' criado com usuário 'fitness_user'. Schema convertido do PostgreSQL para MySQL com sucesso."
+        - working: false
+        - agent: "testing"
+        - comment: "❌ CRITICAL ISSUE: MySQL server is not running or installed. Backend fails to start with 'Error creating MySQL connection pool: 2003 (HY000): Can't connect to MySQL server on localhost:3306 (99)'. This causes all API endpoints to return 502 errors. MySQL service needs to be installed and started."
 
   - task: "Backend MySQL Migration"
     implemented: true
