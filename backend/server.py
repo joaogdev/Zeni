@@ -95,7 +95,9 @@ def convert_datetime_to_string(obj):
     if isinstance(obj, dict):
         return {key: convert_datetime_to_string(value) for key, value in obj.items()}
     elif isinstance(obj, list):
-        return [convert_datetime_to_string(item) for item in obj]
+        # Convert list to JSON string for MySQL storage
+        import json
+        return json.dumps(obj)
     elif isinstance(obj, datetime):
         return obj.isoformat()
     else:
