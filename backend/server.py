@@ -215,7 +215,10 @@ async def reset_password(request: ResetPasswordRequest):
             raise HTTPException(status_code=400, detail="Token inválido ou expirado")
         
         # Verificar se o token não expirou
-        if datetime.fromisoformat(token['expires_at'].replace('Z', '+00:00')) < current_time:
+        expires_at = token['expires_at']
+        if isinstance(expires_at, str):
+            expires_at = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+        if expires_at < current_time:
             raise HTTPException(status_code=400, detail="Token expirado")
         
         # Atualizar senha do usuário
