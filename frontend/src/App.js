@@ -2017,7 +2017,6 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
       <Header userName={user.name} onLogout={handleLogout} />
-      <SupabaseConnectionTest />
       <div className="pb-8">
         {renderCurrentView()}
       </div>
