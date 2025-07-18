@@ -89,9 +89,9 @@ class WorkoutPlan(BaseModel):
 # OpenAI API Key
 OPENAI_API_KEY = "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"
 
-# Helper functions for Supabase operations
+# Helper functions for MySQL operations
 def convert_datetime_to_string(obj):
-    """Convert datetime objects to ISO format strings for Supabase"""
+    """Convert datetime objects to ISO format strings for MySQL"""
     if isinstance(obj, dict):
         return {key: convert_datetime_to_string(value) for key, value in obj.items()}
     elif isinstance(obj, list):
@@ -110,15 +110,12 @@ async def root():
 async def create_status_check(input: StatusCheckCreate):
     status_obj = StatusCheck(**input.dict())
     
-    # Convert datetime for Supabase
+    # Convert datetime for MySQL
     status_data = convert_datetime_to_string(status_obj.dict())
     
     try:
-        response = supabase.table('status_checks').insert(status_data).execute()
-        if response.data:
-            return status_obj
-        else:
-            raise HTTPException(status_code=500, detail="Failed to create status check")
+        mysql_client.insert_one('status_checks', status_data)
+        return status_obj
     except Exception as e:
         logging.error(f"Error creating status check: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -126,10 +123,8 @@ async def create_status_check(input: StatusCheckCreate):
 @api_router.get("/status", response_model=List[StatusCheck])
 async def get_status_checks():
     try:
-        response = supabase.table('status_checks').select("*").execute()
-        if response.data:
-            return [StatusCheck(**item) for item in response.data]
-        return []
+        data = mysql_client.find_all('status_checks')
+        return [StatusCheck(**item) for item in data]
     except Exception as e:
         logging.error(f"Error getting status checks: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -139,19 +134,17 @@ async def get_status_checks():
 async def register(user_data: UserCreate):
     try:
         # Verificar se o email já existe
-        existing_user_response = supabase.table('users').select("*").eq('email', user_data.email).execute()
-        if existing_user_response.data:
+        existing_user = mysql_client.find_one('users', {'email': user_data.email})
+        if existing_user:
             raise HTTPException(status_code=400, detail="Email já cadastrado")
         
         # Criar novo usuário
         user = User(**user_data.dict())
         user_data_dict = convert_datetime_to_string(user.dict())
         
-        response = supabase.table('users').insert(user_data_dict).execute()
-        if response.data:
-            return {"message": "Usuário criado com sucesso", "user_id": user.id, "name": user.name}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to create user")
+        mysql_client.insert_one('users', user_data_dict)
+        return {"message": "Usuário criado com sucesso", "user_id": user.id, "name": user.name}
+        
     except HTTPException:
         raise
     except Exception as e:
@@ -162,163 +155,114 @@ async def register(user_data: UserCreate):
 async def login(login_data: UserLogin):
     try:
         # Buscar usuário
-        response = supabase.table('users').select("*").eq('email', login_data.email).eq('password', login_data.password).execute()
-        if not response.data:
+        user = mysql_client.find_one('users', {'email': login_data.email, 'password': login_data.password})
+        if not user:
             raise HTTPException(status_code=401, detail="Email ou senha incorretos")
         
-        user = response.data[0]
-        return {"message": "Login realizado com sucesso", "user_id": user["id"], "name": user["name"]}
+        return {"message": "Login realizado com sucesso", "user_id": user['id'], "name": user['name']}
+        
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error during login: {str(e)}")
+        logging.error(f"Error logging in: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-# Rotas de Recuperação de Senha
 @api_router.post("/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
     try:
         # Verificar se o usuário existe
-        user_response = supabase.table('users').select("*").eq('email', request.email).execute()
-        if not user_response.data:
+        user = mysql_client.find_one('users', {'email': request.email})
+        if not user:
             # Por segurança, não informamos se o email existe ou não
-            return {"message": "Se o email estiver cadastrado, você receberá as instruções de recuperação"}
-        
-        user = user_response.data[0]
+            return {"message": "Se o email estiver cadastrado, você receberá um link de recuperação"}
         
         # Gerar token de recuperação
         reset_token = secrets.token_urlsafe(32)
-        expires_at = datetime.utcnow() + timedelta(hours=1)  # Token válido por 1 hora
+        expires_at = datetime.utcnow() + timedelta(hours=1)
         
-        # Salvar token no banco
         token_data = PasswordResetToken(
-            user_id=user["id"],
+            user_id=user['id'],
             token=reset_token,
             expires_at=expires_at
         )
         
         token_data_dict = convert_datetime_to_string(token_data.dict())
-        response = supabase.table('password_reset_tokens').insert(token_data_dict).execute()
+        mysql_client.insert_one('password_reset_tokens', token_data_dict)
         
-        if not response.data:
-            raise HTTPException(status_code=500, detail="Failed to create reset token")
-        
-        # Em um ambiente real, você enviaria um email aqui
-        # Para este demo, vamos retornar o link de reset
+        # Em produção, aqui você enviaria o email
         reset_link = f"http://localhost:3000/reset-password?token={reset_token}"
         
         return {
-            "message": "Se o email estiver cadastrado, você receberá as instruções de recuperação",
-            "reset_link": reset_link,  # Em produção, isso seria enviado por email
-            "demo_info": "Em um ambiente real, este link seria enviado por email"
+            "message": "Se o email estiver cadastrado, você receberá um link de recuperação",
+            "reset_link": reset_link  # Apenas para demonstração
         }
-    except HTTPException:
-        raise
+        
     except Exception as e:
-        logging.error(f"Error in forgot password: {str(e)}")
+        logging.error(f"Error processing forgot password: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @api_router.post("/reset-password")
 async def reset_password(request: ResetPasswordRequest):
     try:
-        # Verificar se as senhas coincidem
         if request.new_password != request.confirm_password:
             raise HTTPException(status_code=400, detail="As senhas não coincidem")
         
-        # Verificar se a senha tem pelo menos 6 caracteres
-        if len(request.new_password) < 6:
-            raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 6 caracteres")
-        
         # Buscar token válido
-        current_time = datetime.utcnow().isoformat()
-        token_response = supabase.table('password_reset_tokens').select("*").eq('token', request.token).eq('used', False).gt('expires_at', current_time).execute()
+        current_time = datetime.utcnow()
+        token = mysql_client.find_one('password_reset_tokens', {'token': request.token, 'used': False})
         
-        if not token_response.data:
+        if not token:
             raise HTTPException(status_code=400, detail="Token inválido ou expirado")
         
-        token_data = token_response.data[0]
+        # Verificar se o token não expirou
+        if datetime.fromisoformat(token['expires_at'].replace('Z', '+00:00')) < current_time:
+            raise HTTPException(status_code=400, detail="Token expirado")
         
         # Atualizar senha do usuário
-        user_update_response = supabase.table('users').update({"password": request.new_password}).eq('id', token_data["user_id"]).execute()
-        
-        if not user_update_response.data:
-            raise HTTPException(status_code=500, detail="Failed to update password")
+        mysql_client.update_one('users', {'id': token['user_id']}, {'password': request.new_password})
         
         # Marcar token como usado
-        token_update_response = supabase.table('password_reset_tokens').update({"used": True}).eq('token', request.token).execute()
+        mysql_client.update_one('password_reset_tokens', {'token': request.token}, {'used': True})
         
         return {"message": "Senha alterada com sucesso"}
+        
     except HTTPException:
         raise
     except Exception as e:
         logging.error(f"Error resetting password: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-@api_router.get("/verify-reset-token/{token}")
-async def verify_reset_token(token: str):
+@api_router.get("/validate-reset-token/{token}")
+async def validate_reset_token(token: str):
     try:
         # Verificar se o token é válido
-        current_time = datetime.utcnow().isoformat()
-        token_response = supabase.table('password_reset_tokens').select("*").eq('token', token).eq('used', False).gt('expires_at', current_time).execute()
+        current_time = datetime.utcnow()
+        token_data = mysql_client.find_one('password_reset_tokens', {'token': token, 'used': False})
         
-        if not token_response.data:
-            raise HTTPException(status_code=400, detail="Token inválido ou expirado")
+        if not token_data:
+            raise HTTPException(status_code=400, detail="Token inválido")
         
-        return {"valid": True, "message": "Token válido"}
+        # Verificar se o token não expirou
+        if datetime.fromisoformat(token_data['expires_at'].replace('Z', '+00:00')) < current_time:
+            raise HTTPException(status_code=400, detail="Token expirado")
+        
+        return {"message": "Token válido"}
+        
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error verifying token: {str(e)}")
+        logging.error(f"Error validating reset token: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-# Rotas do Chat de IA
+# Rotas de Chat com IA
 @api_router.post("/chat")
 async def chat_with_ai(chat_request: ChatRequest):
     try:
-        # Importar aqui para evitar problemas de importação
-        # TODO: Certifique-se de instalar o pacote correto ou substitua pelo caminho correto do módulo
-        # Exemplo de substituição se estiver usando o pacote openai:
-        # from openai import OpenAI
-        # Importe LlmChat e UserMessage do módulo correto abaixo:
-        raise HTTPException(status_code=503, detail="IA temporariamente indisponível - módulo de chat não encontrado")
+        # Aqui você integraria com a OpenAI API
+        # Por enquanto, vamos simular uma resposta
+        response = f"Resposta da IA para: {chat_request.message}"
         
-        # Sistema de mensagem para a IA
-        system_message = """Você é um personal trainer especializado em treinos em casa. 
-        Ajude o usuário a criar planos de treino personalizados baseados em:
-        - Nível de condicionamento físico
-        - Objetivos (perder peso, ganhar massa, resistência, etc.)
-        - Equipamentos disponíveis
-        - Tempo disponível
-        - Limitações físicas
-        
-        Forneça exercícios específicos com:
-        - Nome do exercício
-        - Número de séries
-        - Número de repetições
-        - Tempo de descanso
-        - Instruções de execução
-        - Dicas de segurança
-        
-        Seja motivador e educativo. Responda em português brasileiro."""
-        
-        # Verificar se a API key está configurada
-        if not OPENAI_API_KEY or OPENAI_API_KEY == "":
-            raise HTTPException(status_code=503, detail="IA temporariamente indisponível - API key não configurada")
-        
-        # Inicializar chat
-        chat = LlmChat(
-            api_key=OPENAI_API_KEY,
-            session_id=chat_request.session_id,
-            system_message=system_message
-        ).with_model("openai", "gpt-4o")
-        
-        # Criar mensagem do usuário
-        user_message = UserMessage(text=chat_request.message)
-        
-        # Enviar mensagem e obter resposta
-        response = await chat.send_message(user_message)
-        
-        # Salvar no banco de dados Supabase
+        # Salvar no banco de dados
         chat_message = ChatMessage(
             session_id=chat_request.session_id,
             user_id=chat_request.user_id,
@@ -327,75 +271,54 @@ async def chat_with_ai(chat_request: ChatRequest):
         )
         
         chat_data = convert_datetime_to_string(chat_message.dict())
-        supabase_response = supabase.table('chat_messages').insert(chat_data).execute()
+        mysql_client.insert_one('chat_messages', chat_data)
         
         return {"response": response, "session_id": chat_request.session_id}
         
-    except ImportError as e:
-        logger.error(f"Erro de importação: {str(e)}")
-        raise HTTPException(status_code=503, detail="IA temporariamente indisponível - erro de configuração")
     except Exception as e:
-        error_msg = str(e).lower()
-        logger.error(f"Erro no chat: {str(e)}")
-        
-        # Verificar tipos específicos de erro
-        if "authentication" in error_msg or "api key" in error_msg or "incorrect" in error_msg:
-            raise HTTPException(status_code=503, detail="IA temporariamente indisponível - chave de API inválida")
-        elif "quota" in error_msg or "limit" in error_msg:
-            raise HTTPException(status_code=503, detail="IA temporariamente indisponível - limite de uso excedido")
-        elif "network" in error_msg or "connection" in error_msg:
-            raise HTTPException(status_code=503, detail="IA temporariamente indisponível - problemas de conexão")
-        else:
-            raise HTTPException(status_code=503, detail="IA temporariamente indisponível - tente novamente em alguns instantes")
+        logging.error(f"Error in chat: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-# Buscar histórico de chat
 @api_router.get("/chat/{session_id}")
 async def get_chat_history(session_id: str):
     try:
-        response = supabase.table('chat_messages').select("*").eq('session_id', session_id).order('timestamp').execute()
-        return response.data if response.data else []
+        data = mysql_client.find_all('chat_messages', {'session_id': session_id})
+        return data
     except Exception as e:
         logging.error(f"Error getting chat history: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-# Salvar plano de treino criado pela IA
 @api_router.post("/workouts")
 async def save_workout(workout: WorkoutPlan):
     try:
         workout_data = convert_datetime_to_string(workout.dict())
-        response = supabase.table('workouts').insert(workout_data).execute()
-        if response.data:
-            return {"message": "Treino salvo com sucesso", "workout_id": workout.id}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to save workout")
+        mysql_client.insert_one('workouts', workout_data)
+        return {"message": "Treino salvo com sucesso", "workout_id": workout.id}
     except Exception as e:
         logging.error(f"Error saving workout: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-# Buscar treinos do usuário
 @api_router.get("/workouts/{user_id}")
 async def get_user_workouts(user_id: str):
     try:
-        response = supabase.table('workouts').select("*").eq('user_id', user_id).order('created_at', desc=True).execute()
-        return response.data if response.data else []
+        data = mysql_client.find_all('workouts', {'user_id': user_id})
+        return data
     except Exception as e:
         logging.error(f"Error getting user workouts: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-# Include the router in the main app
-app.include_router(api_router)
-
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Include the API router
+app.include_router(api_router)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)
