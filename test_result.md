@@ -161,7 +161,87 @@
         - working: true
         - agent: "testing"
         - comment: "Health check endpoint working correctly. Database-dependent endpoints return expected 500 errors until Supabase tables are created. This is the expected behavior before manual table creation."
-user_problem_statement: "Connect this project to Supabase database: URL: https://wkmjaxehuxwukhhkjktl.supabase.co API KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrbWpheGVodXh3dWtoaGtqa3RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0OTg5MzEsImV4cCI6MjA2NzA3NDkzMX0.xqqLZEYY6tdQBq2MnJnvyRKtvaca_aMdEl6GoEua7jo"
+user_problem_statement: "Migração completa do Supabase para MySQL. Criar estrutura de banco MySQL, migrar backend e frontend, testar funcionalidades."
+
+backend:
+  - task: "MySQL Database Setup"
+    implemented: true
+    working: true
+    file: "/app/mysql_schema.sql"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "main"
+        - comment: "Configurando MySQL server e criando database fitness_app."
+        - working: true
+        - agent: "main"
+        - comment: "MySQL instalado e configurado. Database 'fitness_app' criado com usuário 'fitness_user'. Schema convertido do PostgreSQL para MySQL com sucesso."
+
+  - task: "Backend MySQL Migration"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py, /app/backend/mysql_client.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "main"
+        - comment: "Migrando código backend do Supabase para MySQL."
+        - working: true
+        - agent: "main"
+        - comment: "Backend completamente migrado. Criado cliente MySQL personalizado. Todas as operações de banco convertidas. Dependências atualizadas. Testes básicos passaram."
+
+  - task: "API Endpoints Testing"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "main"
+        - comment: "Testando endpoints básicos após migração."
+        - working: true
+        - agent: "main"
+        - comment: "Endpoints básicos funcionando: health check, status, register, login testados via curl com sucesso."
+
+frontend:
+  - task: "Frontend Cleanup"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js, /app/frontend/package.json"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "main"
+        - comment: "Removendo dependências do Supabase do frontend."
+        - working: true
+        - agent: "main"
+        - comment: "Dependências do Supabase removidas. Arquivos de teste do Supabase removidos. Package.json atualizado. Variáveis de ambiente limpas."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Backend MySQL Migration"
+    - "API Endpoints Testing"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+    - agent: "main"
+    - message: "Migração completa do Supabase para MySQL concluída. Backend migrado com cliente MySQL personalizado. Frontend limpo. Testes básicos passaram. Pronto para testes completos do backend."
 
 backend:
   - task: "Health Check Endpoint"
