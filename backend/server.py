@@ -246,7 +246,10 @@ async def validate_reset_token(token: str):
             raise HTTPException(status_code=400, detail="Token inválido")
         
         # Verificar se o token não expirou
-        if datetime.fromisoformat(token_data['expires_at'].replace('Z', '+00:00')) < current_time:
+        expires_at = token_data['expires_at']
+        if isinstance(expires_at, str):
+            expires_at = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+        if expires_at < current_time:
             raise HTTPException(status_code=400, detail="Token expirado")
         
         return {"message": "Token válido"}
