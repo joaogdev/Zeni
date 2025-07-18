@@ -10,20 +10,10 @@ import uuid
 from datetime import datetime, timedelta
 import secrets
 import hashlib
-from supabase import create_client, Client
+from mysql_client import mysql_client
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
-
-# Supabase configuration
-SUPABASE_URL = os.environ.get('SUPABASE_URL')
-SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in environment variables")
-
-# Create Supabase client
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Create the main app without a prefix
 app = FastAPI()
